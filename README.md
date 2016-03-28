@@ -36,3 +36,4 @@ findInObject(this, "childName", {name: "myObj"});
   depth: 5,
   value: "daniel"
 }];
+
