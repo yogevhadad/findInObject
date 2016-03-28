@@ -7,7 +7,7 @@ The function takes 3 aguments:
   target: the target key we are searching for
   options: a list of option to pass to the function
   
-Supported options are:
+Supported options are:\n
   *ignoreCase*: _Boolean_, should the search be case sensitive. _default_: false
    *exactMatch*: _Boolean_, should the search include only part of the name. (i.e "api" will find "exteranal api") _default_: true
   *skipDom*: _Boolean_, should the search skip dom elements. _default_: true
