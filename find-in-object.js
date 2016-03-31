@@ -2,114 +2,201 @@
  * Created by yogev hadad on 28/03/16.
  */
 
-window.findInObject = (function () {
+window.findInObject = window.FIO = (function () {
 
-    function parseOptions(options) {
+    function Finder() {
 
-        var DEFAULT_MAX_depth = 10;
+        var init = function (opt) {
+            parseOptions.call(this, opt || {});
+        };
+
+        var find = function (object, target) {
+
+            this.obj = copy(object);
+            this.target = this.ignoreCase ? target.toLowerCase() : target;
+
+            var that = this;
+            var paths = [];
+            var depth = -1;
+            var startTime = Date.now();
+            setTimeout(function () {
+                print("Searching for " + target + " in " + this.name + "...");
+                _findInChild.call(that, that.obj);
+                if (that.breakOnMaxResults) {
+                    print("Maximum number of results found");
+                }
+                that.done(paths, Date.now() - startTime);
+            }, 0);
+
+            function _findInChild (obj, path) {
+                depth++;
+                var path = path || this.name;
+
+                if (this.maxResults && paths.length == this.maxResults) {
+                    this.breakOnMaxResults = true;
+                    return;
+                }
+
+                if (depth < this.maxDepth) {
+                    if (Array.isArray(obj)) {
+                        for (var i = 0; i < obj.length; i++) {
+                            _findInChild.call(this, obj[i], path + "[" + i + "]");
+                        }
+                    } else if (typeof obj == "object") {
+                        for (var p in obj) {
+
+                            if (this.filter(p)) {
+                                return;
+                            }
+
+                            var pName = this.ignoreCase ? p.toLowerCase() : p + "";
+
+                            //BINGO!!!
+                            if (pName == target || (!this.exactMatch && pName.indexOf(target) != -1)) {
+                                var result = {
+                                    path: path + "." + p,
+                                    depth: depth
+                                };
+
+                                if (this.showValue) {
+                                    result.value = obj[p];
+                                }
+
+                                if (this.printEach) {
+                                    print(" \u2022 " + result.path + (this.showValue ? " > " + obj[p] : ""));
+                                }
+
+                                paths.push(result);
+                            }
+
+                            _findInChild.call(this, obj[p], path + "." + p);
+                        }
+                    }
+                }
+
+                depth--;
+            };
+        };
 
         return {
-            ignoreCase: options.ignoreCase,
-            skipDom: options.skipDom,
-            sortBy: (function(){
-                if (typeof options.sortBy == "function") {
-                    return function(a, b) {
-                        try {
-                            options.sortBy(a, b);
-                        } catch (e) {
-                            console.error("Sorting function error: " + e);
-                        }
-                    };
-                } else {
-                    return function (a, b) {
-                        return a.depth > b.depth;
-                    };
-                }
-            }()),
-            name: options.name || "[object]",
-            maxdepth: (function () {
-                if (options.depth && !isNaN(options.depth)) {
-                    return Math.min(options.depth, DEFAULT_MAX_depth);
-                }
-                return DEFAULT_MAX_depth;
-            }()),
-            showValue: options.showValue == false ? false : true,
-            exactMatch: options.exactMatch == false ? false : true
+            init: init,
+            find: find
         };
     }
 
-    function find(obj, target, opt) {
+    function parseOptions(options) {
 
-        var depth = -1;
-        var paths = [];
+        var DEFAULT_DEPTH = 5;
+        var MAX_DEPTH = 10;
+        var MAX_RESULTS = 10;
 
-        findInChild(obj, target);
-        return paths;
+        var that = this;
+        //var log = options.log == false ? false : true;
 
-        function findInChild(obj, path) {
-            depth++;
-            var path = path || opt.name;
+        this.maxDepth = !isNaN(options.depth) ? Math.min(options.depth, MAX_DEPTH) : DEFAULT_DEPTH;
+        this.maxResults = (function(){
+            if (!isNaN(options.max)) {
+                if (options.max == 0) {
+                    return null;
+                }
+                return options.max;
+            }
+            return MAX_RESULTS;
+        }());
+        //The name of the object we search in
+        this.name = options.name || "[object]";
+        //this.log = log;
+        this.ignoreCase = options.ignoreCase;
+        //Should search in Dom element
+        this.includeDom = options.includeDom;
+        //Print each path as it is found
+        this.printEach = options.printEach;
+        //Should the value be included in the results
+        this.showValue = options.showValue == false ? false : true;
+        this.exactMatch = options.exactMatch == false ? false : true;
 
-            if (depth < opt.maxdepth) {
-                if (Array.isArray(obj)) {
-                    for (var i = 0; i < obj.length; i++) {
-                        findInChild(obj[i], path + "[" + i + "]");
-                    }
-                } else if (typeof obj == "object") {
-                    for (var p in obj) {
-
-                        if (opt.skipDom && isDomElement(p)) {
-                            return;
-                        }
-
-                        var pName = opt.ignoreCase ? p.toLowerCase() : p + "";
-
-                        //BINGO!!!
-                        if (pName == target || (!opt.exactMatch && pName.indexOf(target) != -1)) {
-                            var result = {
-                                path: path + "." + p,
-                                depth: depth
-                            };
-                            if (opt.showValue) {
-                                result.value = obj[p];
-                            }
-                            paths.push(result);
-                        }
-
-                        findInChild(obj[p], path + "." + p);
+        //Filter function
+        this.filter = function(p) {
+            var domFilter = !that.includeDom && isDomElement(p);
+            var userFilter = (function(){
+                if (typeof options.filter == "function") {
+                    try {
+                        return options.filter(p);
+                    } catch (e) {
+                        print("Filter function error: ", e);
                     }
                 }
-            }
+            }());
 
-            depth--;
+            return domFilter || userFilter;
         }
+
+        //Sorting the results. Default: by depth
+        this.sortBy = (function () {
+            if (typeof options.sortBy == "function") {
+                return function (a, b) {
+                    try {
+                        options.sortBy(a, b);
+                    } catch (e) {
+                        console.error("Sorting function error: " + e);
+                    }
+                };
+            } else {
+                return function (a, b) {
+                    return a.depth > b.depth;
+                };
+            }
+        }());
+
+        //Function to be called when the search has finished
+        this.done = (function () {
+            if (typeof options.done == "function") {
+                return function (paths, ms) {
+                    try {
+                        options.done(paths, ms);
+                    } catch (e) {
+                        console.error("Done callback error: " + e);
+                    }
+                };
+            } else {
+                return function (paths, ms) {
+                    if (paths.length > 0) {
+                        print(paths.length + " paths found: (in " + ms + "ms)", paths);
+                    } else {
+                        print("Could not find " + that.target + " in " + that.name + ". (Search depth: " + maxDepth + ")");
+                        if (that.maxDepth < MAX_DEPTH) {
+                            print("Tip: You can try increasing your search depth up to " + MAX_DEPTH);
+                        }
+                    }
+                };
+            }
+        }());
     }
 
-    function isDomElement (elem) {
+    function isDomElement(elem) {
         var type = elem.nodeType;
 
         return [1, 2, 3, 8].indexOf(type) != -1;
     }
 
-    return function (obj, target, options) {
+    function print() {
+        var args = ["FIO: "].concat(Array.prototype.slice.apply(arguments));
+        console.log.apply(console, args);
+    }
 
-        var startTime = Date.now();
+    function copy(obj) {
+        return JSON.parse(JSON.stringify(obj));
+    }
 
-        var opt = parseOptions(options || {});
-        var target = opt.ignoreCase ? target.toLowerCase() : target;
+    return function (object, target, options) {
 
+        var finder = new Finder();
 
-
-        var paths = find(obj, target, opt).sort(opt.sortBy);
-        if (paths.length == 0) {
-            console.warn("Could not find " + target + " in " + opt.name + ". search depth: " + opt.maxdepth)
+        if (object && target) {
+            finder.init(options);
+            finder.find(object, target);
         }
-
-        var endTIme = Date.now();
-        var ms = endTIme - startTime;
-        console.log("findInObject finished in " + ms + "ms");
-
-        return paths;
+        return finder;
     };
 
 }());
