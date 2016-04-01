@@ -175,11 +175,11 @@ window.findInObject = window.FIO = (function () {
         }());
     }
 
-    function isDomElement(elem) {
-        var type = elem.nodeType;
-
-        return [1, 2, 3, 8].indexOf(type) != -1;
-    }
+    //function isDomElement(elem) {
+    //    var type = elem.nodeType;
+    //
+    //    return [1, 2, 3, 8].indexOf(type) != -1;
+    //}
 
     function print() {
         var args = ["FIO: "].concat(Array.prototype.slice.apply(arguments));
