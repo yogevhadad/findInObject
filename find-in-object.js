@@ -52,18 +52,18 @@ window.findInObject = window.FIO = (function () {
                             var pName = this.ignoreCase ? p.toLowerCase() : p + "";
 
                             //BINGO!!!
-                            if (pName == target || (!this.exactMatch && pName.indexOf(target) != -1)) {
+                            if (pName == target || (!this.match && pName.indexOf(target) != -1)) {
                                 var result = {
                                     path: path + "." + p,
                                     depth: depth
                                 };
 
-                                if (this.showValue) {
+                                if (this.values) {
                                     result.value = obj[p];
                                 }
 
-                                if (this.printEach) {
-                                    print(" \u2022 " + result.path + (this.showValue ? " > " + obj[p] : ""));
+                                if (this.print) {
+                                    print(" \u2022 " + result.path + (this.values ? " > " + obj[p] : ""));
                                 }
 
                                 paths.push(result);
@@ -108,16 +108,17 @@ window.findInObject = window.FIO = (function () {
         //this.log = log;
         this.ignoreCase = options.ignoreCase;
         //Should search in Dom element
-        this.includeDom = options.includeDom;
+        //TODO: add DOM elements support
+        //this.includeDom = options.includeDom;
         //Print each path as it is found
-        this.printEach = options.printEach;
+        this.print = options.print;
         //Should the value be included in the results
-        this.showValue = options.showValue == false ? false : true;
-        this.exactMatch = options.exactMatch == false ? false : true;
+        this.values = options.values == false ? false : true;
+        this.match = options.match == false ? false : true;
 
         //Filter function
         this.filter = function(p) {
-            var domFilter = !that.includeDom && isDomElement(p);
+            //var domFilter = !that.includeDom && isDomElement(p);
             var userFilter = (function(){
                 if (typeof options.filter == "function") {
                     try {
@@ -128,7 +129,8 @@ window.findInObject = window.FIO = (function () {
                 }
             }());
 
-            return domFilter || userFilter;
+            //return domFilter || userFilter;
+            return userFilter;
         }
 
         //Sorting the results. Default: by depth
