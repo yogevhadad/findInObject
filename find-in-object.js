@@ -19,16 +19,25 @@ window.findInObject = window.FIO = (function () {
             var paths = [];
             var depth = -1;
             var startTime = Date.now();
-            setTimeout(function () {
-                print("Searching for " + target + " in " + this.name + "...");
+
+            if (this.async) {
+                setTimeout(function () {
+                    _startSrearch();
+                }, 0);
+            } else {
+                _startSrearch();
+            }
+
+            function _startSrearch() {
+                log.call(that, "Searching for " + target + " in " + this.name + "...");
                 _findInChild.call(that, that.obj);
                 if (that.breakOnMaxResults) {
-                    print("Maximum number of results found");
+                    log.call(that, "Maximum number of results found");
                 }
-                that.done(paths, Date.now() - startTime);
-            }, 0);
+                that.done(paths.sort(that.sortBy), Date.now() - startTime);
+            }
 
-            function _findInChild (obj, path) {
+            function _findInChild(obj, path) {
                 depth++;
                 var path = path || this.name;
 
@@ -63,7 +72,7 @@ window.findInObject = window.FIO = (function () {
                                 }
 
                                 if (this.print) {
-                                    print(" \u2022 " + result.path + (this.values ? " > " + obj[p] : ""));
+                                    log.call(that, " \u2022 " + result.path + (this.values ? " > " + obj[p] : ""));
                                 }
 
                                 paths.push(result);
@@ -91,7 +100,6 @@ window.findInObject = window.FIO = (function () {
         var MAX_RESULTS = 10;
 
         var that = this;
-        //var log = options.log == false ? false : true;
 
         this.maxDepth = !isNaN(options.depth) ? Math.min(options.depth, MAX_DEPTH) : DEFAULT_DEPTH;
         this.maxResults = (function(){
@@ -105,7 +113,6 @@ window.findInObject = window.FIO = (function () {
         }());
         //The name of the object we search in
         this.name = options.name || "[object]";
-        //this.log = log;
         this.ignoreCase = options.ignoreCase;
         //Should search in Dom element
         //TODO: add DOM elements support
@@ -114,7 +121,10 @@ window.findInObject = window.FIO = (function () {
         this.print = options.print;
         //Should the value be included in the results
         this.values = options.values == false ? false : true;
+        //Shuold the match of the whole word
         this.match = options.match == false ? false : true;
+        this.log =  options.log == false ? false : true;
+        this.async = options.async == false ? false : true;
 
         //Filter function
         this.filter = function(p) {
@@ -124,7 +134,7 @@ window.findInObject = window.FIO = (function () {
                     try {
                         return options.filter(p);
                     } catch (e) {
-                        print("Filter function error: ", e);
+                        error.call(that, "Filter function error: ", e);
                     }
                 }
             }());
@@ -140,7 +150,7 @@ window.findInObject = window.FIO = (function () {
                     try {
                         options.sortBy(a, b);
                     } catch (e) {
-                        console.error("Sorting function error: " + e);
+                        error.call(that, "Sorting function error: " + e);
                     }
                 };
             } else {
@@ -157,17 +167,17 @@ window.findInObject = window.FIO = (function () {
                     try {
                         options.done(paths, ms);
                     } catch (e) {
-                        console.error("Done callback error: " + e);
+                        error.call(that, "Done callback error: " + e);
                     }
                 };
             } else {
                 return function (paths, ms) {
                     if (paths.length > 0) {
-                        print(paths.length + " paths found: (in " + ms + "ms)", paths);
+                        log.call(that, paths.length + " paths found: (in " + ms + "ms)", paths);
                     } else {
-                        print("Could not find " + that.target + " in " + that.name + ". (Search depth: " + maxDepth + ")");
+                        log.call(that, "Could not find " + that.target + " in " + that.name + ". (Search depth: " + maxDepth + ")");
                         if (that.maxDepth < MAX_DEPTH) {
-                            print("Tip: You can try increasing your search depth up to " + MAX_DEPTH);
+                            log.call(that, "Tip: You can try increasing your search depth up to " + MAX_DEPTH);
                         }
                     }
                 };
@@ -181,9 +191,21 @@ window.findInObject = window.FIO = (function () {
     //    return [1, 2, 3, 8].indexOf(type) != -1;
     //}
 
-    function print() {
-        var args = ["FIO: "].concat(Array.prototype.slice.apply(arguments));
-        console.log.apply(console, args);
+    //PRINTING FUNCTIONS
+    function error() {
+        print.call(this, "error", arguments);
+    }
+
+    function log() {
+        print.call(this, "log", arguments);
+    }
+
+    function print(method, output) {
+        if (!this.log) {
+            return;
+        }
+        var output = ["FIO: "].concat(Array.prototype.slice.apply(output));
+        console[method].apply(console, output);
     }
 
     function copy(obj) {
