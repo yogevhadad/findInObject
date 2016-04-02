@@ -4,13 +4,39 @@
 
 window.findInObject = window.FIO = (function () {
 
-    function Finder() {
+    function Finder(options) {
 
-        var init = function (opt) {
+        var setup = function (opt) {
             parseOptions.call(this, opt || {});
         };
 
-        var find = function (object, target) {
+        var find = function (object, arg1, arg2) {
+
+            if (typeof object != "object") {
+                log.call(this, "You can only search within an object!");
+                return;
+            }
+
+            var target, options;
+
+            switch (typeof arg1) {
+                case "string" :
+                    target = arg1;
+                    options = arg2;
+                    break;
+                case "object" :
+                    if (options.findBy) {
+                        options = arg1;
+                        break;
+                    } else {
+                        error.call(this, "Either target of 'findBy' function must be defined!");
+                        return;
+                    }
+                default :
+                    error.call(this, "Second argument must be a string or an object!");
+            }
+
+            setup.call(this, options);
 
             this.obj = copy(object);
             this.target = this.ignoreCase ? target.toLowerCase() : target;
@@ -49,33 +75,14 @@ window.findInObject = window.FIO = (function () {
                 if (depth < this.maxDepth) {
                     if (Array.isArray(obj)) {
                         for (var i = 0; i < obj.length; i++) {
+                            if (this.customFind) {
+                                _checkForMatch.call(this, i, obj, path);
+                            }
                             _findInChild.call(this, obj[i], path + "[" + i + "]");
                         }
                     } else if (typeof obj == "object") {
                         for (var p in obj) {
-
-                            if (this.filter(p)) {
-                                return;
-                            }
-
-                            //BINGO!!!
-                            if (this.check.call(this, p, obj[p])) {
-                                var result = {
-                                    path: path + "." + p,
-                                    depth: depth
-                                };
-
-                                if (this.values) {
-                                    result.value = obj[p];
-                                }
-
-                                if (this.print) {
-                                    log.call(that, " \u2022 " + result.path + (this.values ? " > " + obj[p] : ""));
-                                }
-
-                                paths.push(result);
-                            }
-
+                            _checkForMatch.call(this, p, obj, path);
                             _findInChild.call(this, obj[p], path + "." + p);
                         }
                     }
@@ -83,11 +90,47 @@ window.findInObject = window.FIO = (function () {
 
                 depth--;
             };
+
+            function _checkForMatch(p, obj, path) {
+
+                if (this.filter(p)) {
+                    return true; //true as in nothing to be found here
+                }
+
+                if (this.check.call(this, p, obj[p])) {
+                    var result = {
+                        path: path + "." + p,
+                        depth: depth
+                    };
+
+                    if (this.values) {
+                        result.value = obj[p];
+                    }
+
+                    if (this.print) {
+                        log.call(that, " \u2022 " + result.path + (this.values ? " > " + obj[p] : ""));
+                    }
+
+                    paths.push(result);
+
+                    return true;
+                }
+            }
         };
 
+        var findValue = function(object, target, options) {
+            options = options || {};
+            options.findBy = function(elem, value) {
+                return target == value;
+            };
+            find.call(this, object, target, options);
+        };
+
+        setup(options);
         return {
-            init: init,
-            find: find
+            setup: setup,
+            find: find,
+            findValue: findValue
         };
     }
 
@@ -138,7 +181,7 @@ window.findInObject = window.FIO = (function () {
             } else {
                 return function(elem) {
                     var elemName = that.ignoreCase ? elem.toLowerCase() : elem + "";
-                    return elemName == that.target || (!that.match && elemName.indexOf(that.target) != -1)
+                    return elemName == that.target || (!that.match && elemName.indexOf(that.target) != -1);
                 }
             }
         }());
@@ -231,10 +274,9 @@ window.findInObject = window.FIO = (function () {
 
     return function (object, target, options) {
 
-        var finder = new Finder();
+        var finder = new Finder(options);
 
         if (object && target) {
-            finder.init(options);
             finder.find(object, target);
         }
         return finder;
