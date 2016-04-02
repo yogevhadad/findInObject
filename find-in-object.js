@@ -34,7 +34,7 @@ window.findInObject = window.FIO = (function () {
                 if (that.breakOnMaxResults) {
                     log.call(that, "Maximum number of results found");
                 }
-                that.done(paths.sort(that.sortBy), Date.now() - startTime);
+                that.done.call(this, paths.sort(that.sortBy), Date.now() - startTime);
             }
 
             function _findInChild(obj, path) {
@@ -58,10 +58,8 @@ window.findInObject = window.FIO = (function () {
                                 return;
                             }
 
-                            var pName = this.ignoreCase ? p.toLowerCase() : p + "";
-
                             //BINGO!!!
-                            if (pName == target || (!this.match && pName.indexOf(target) != -1)) {
+                            if (this.check.call(this, p, obj[p])) {
                                 var result = {
                                     path: path + "." + p,
                                     depth: depth
@@ -126,6 +124,25 @@ window.findInObject = window.FIO = (function () {
         this.log =  options.log == false ? false : true;
         this.async = options.async == false ? false : true;
 
+        //Matching function
+        this.check = (function(){
+            if (typeof options.findBy == "function") {
+                that.customFind = true;
+                return function(elem, val) {
+                    try {
+                        return options.findBy(elem, val);
+                    } catch (e) {
+                        error.call(that, e);
+                    }
+                };
+            } else {
+                return function(elem) {
+                    var elemName = that.ignoreCase ? elem.toLowerCase() : elem + "";
+                    return elemName == that.target || (!that.match && elemName.indexOf(that.target) != -1)
+                }
+            }
+        }());
+
         //Filter function
         this.filter = function(p) {
             //var domFilter = !that.includeDom && isDomElement(p);
@@ -175,7 +192,7 @@ window.findInObject = window.FIO = (function () {
                     if (paths.length > 0) {
                         log.call(that, paths.length + " paths found: (in " + ms + "ms)", paths);
                     } else {
-                        log.call(that, "Could not find " + that.target + " in " + that.name + ". (Search depth: " + maxDepth + ")");
+                        log.call(that, "Could not find " + that.target + " in " + that.name + ". (Search depth: " + that.maxDepth + ")");
                         if (that.maxDepth < MAX_DEPTH) {
                             log.call(that, "Tip: You can try increasing your search depth up to " + MAX_DEPTH);
                         }
