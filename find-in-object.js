@@ -76,12 +76,18 @@ window.findInObject = window.FIO = (function () {
                     if (Array.isArray(obj)) {
                         for (var i = 0; i < obj.length; i++) {
                             if (this.customFind) {
+                                if (this.filter(p)) {
+                                    return true;
+                                }
                                 _checkForMatch.call(this, i, obj, path);
                             }
                             _findInChild.call(this, obj[i], path + "[" + i + "]");
                         }
                     } else if (typeof obj == "object") {
                         for (var p in obj) {
+                            if (this.filter(p)) {
+                                return true;
+                            }
                             _checkForMatch.call(this, p, obj, path);
                             _findInChild.call(this, obj[p], path + "." + p);
                         }
@@ -92,11 +98,6 @@ window.findInObject = window.FIO = (function () {
             };
 
             function _checkForMatch(p, obj, path) {
-
-                if (this.filter(p)) {
-                    return true; //true as in nothing to be found here
-                }
-
                 if (this.check.call(this, p, obj[p])) {
                     var result = {
                         path: path + "." + p,
@@ -112,8 +113,6 @@ window.findInObject = window.FIO = (function () {
                     }
 
                     paths.push(result);
-
-                    return true;
                 }
             }
         };
