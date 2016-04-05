@@ -25,7 +25,7 @@ window.findInObject = window.FIO = (function () {
                     options = arg2;
                     break;
                 case "object" :
-                    if (options.findBy) {
+                    if (arg1.findBy) {
                         options = arg1;
                         break;
                     } else {
@@ -38,7 +38,7 @@ window.findInObject = window.FIO = (function () {
 
             setup.call(this, options);
 
-            this.obj = copy(object);
+            this.obj = clone(object);
             this.target = this.ignoreCase ? target.toLowerCase() : target;
 
             var that = this;
@@ -159,7 +159,7 @@ window.findInObject = window.FIO = (function () {
         //TODO: add DOM elements support
         //this.includeDom = options.includeDom;
         //Print each path as it is found
-        this.print = options.print;
+        this.print = options.values == false ? false : true;
         //Should the value be included in the results
         this.values = options.values == false ? false : true;
         //Shuold the match of the whole word
@@ -268,8 +268,12 @@ window.findInObject = window.FIO = (function () {
         console[method].apply(console, output);
     }
 
-    function copy(obj) {
-        return JSON.parse(JSON.stringify(obj));
+    function clone(obj) {
+        var copy = {};
+        for (var attr in obj) {
+            if (obj.hasOwnProperty(attr)) copy[attr] = obj[attr];
+        }
+        return copy;
     }
 
     return function (object, target, options) {
